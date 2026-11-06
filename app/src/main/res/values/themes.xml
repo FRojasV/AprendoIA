@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Tema base de la Activity. Los colores de Compose están en ui/theme/Theme.kt -->
+    <style name="Theme.AprendoIA" parent="android:Theme.Material.Light.NoActionBar">
+        <item name="android:windowBackground">@color/fondo_app</item>
+    </style>
+</resources>

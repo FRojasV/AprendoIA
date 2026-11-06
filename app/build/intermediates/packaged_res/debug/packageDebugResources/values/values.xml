@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="azul_oscuro">#FF0B2A5B</color>
+    <color name="azul_primario">#FF1E6FE8</color>
+    <color name="fondo_app">#FFF5F7FB</color>
+    <string name="app_name">Aprendo IA</string>
+    <style name="Theme.AprendoIA" parent="android:Theme.Material.Light.NoActionBar">
+        <item name="android:windowBackground">@color/fondo_app</item>
+    </style>
+</resources>

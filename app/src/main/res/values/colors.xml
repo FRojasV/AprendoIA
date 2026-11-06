@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="fondo_app">#FFF5F7FB</color>
+    <color name="azul_primario">#FF1E6FE8</color>
+    <color name="azul_oscuro">#FF0B2A5B</color>
+</resources>
