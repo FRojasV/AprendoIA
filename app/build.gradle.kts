@@ -44,7 +44,7 @@ android {
         buildConfigField("String", "URL_API_CLIMA", "\"https://api.open-meteo.com/\"")
     }
 
-    // ---------- Firma de la APK de release con la llave .jks ----------
+    // ---------- Firma de la APK ----------
     signingConfigs {
         if (propiedadesFirma.containsKey("storeFile")) {
             create("release") {
@@ -58,8 +58,7 @@ android {
 
     buildTypes {
         debug {
-            // Genera el reporte de cobertura de las pruebas unitarias (JaCoCo):
-            // ./gradlew createDebugUnitTestCoverageReport
+
             enableUnitTestCoverage = true
         }
         release {

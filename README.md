@@ -3,14 +3,16 @@
 Aplicación móvil Android (Kotlin + Jetpack Compose) con backend de microservicios Spring Boot.
 Caso de estudio: **Triskeledu – Aprendo IA Jugando en Santiago**.
 
-- **Asignatura:** [NOMBRE DE LA ASIGNATURA] ([SIGLA])
+- **Asignatura:** DESARROLLO DE APLICACIONES MOVILES_006D
 - **Evaluación:** Evaluación Parcial 4
 
 ## 1. Integrantes
 
-| Nombre y apellidos | RUT |
-|---|---|
-| [NOMBRE APELLIDO APELLIDO] | [RUT] |
+| Nombre y apellidos | RUT          |
+|--------------------|--------------|
+| Felipe Rojas       | 20.578.524-8 |
+
+Proyecto individual, no aplica Trello.
 
 ## 2. Estructura del repositorio
 
@@ -116,7 +118,7 @@ Los errores se devuelven como JSON: `{"fecha", "estado", "error", "campos"}`.
 | GET | `/api/ranking?limite=10` | Ranking de jugadores |
 | DELETE | `/api/progreso/{usuarioId}` | Borra todo el progreso de un jugador |
 
-### 5.2 API externa — Open-Meteo (sin API key)
+### 5.2 API externa — Open-Meteo 
 
 | Método | Endpoint | Uso en la app |
 |---|---|---|
@@ -131,7 +133,7 @@ microservicios: si falla, solo la tarjeta del clima muestra un aviso con botón 
 
 Requisitos: **JDK 17** y **Maven 3.9+** (o IntelliJ IDEA, que trae Maven).
 
-**Opción A — MySQL (XAMPP / Laragon / MySQL Server)**
+**Base de datos: MySQL (XAMPP / Laragon / MySQL Server)**
 1. Encender MySQL en el puerto 3306 (usuario `root` sin contraseña por defecto).
    Si tu usuario es otro: definir las variables `DB_USER` y `DB_PASSWORD`.
 2. No hay que crear nada a mano: cada microservicio **crea su base de datos**
@@ -144,16 +146,8 @@ Requisitos: **JDK 17** y **Maven 3.9+** (o IntelliJ IDEA, que trae Maven).
    mvn -pl ms-contenidos spring-boot:run
    mvn -pl ms-juego spring-boot:run
    ```
-
-**Opción B — sin MySQL (base H2 en memoria)**
-```bash
-mvn -pl ms-usuarios spring-boot:run -Dspring-boot.run.profiles=h2
-mvn -pl ms-contenidos spring-boot:run -Dspring-boot.run.profiles=h2
-mvn -pl ms-juego spring-boot:run -Dspring-boot.run.profiles=h2
-```
-
 4. Comprobar: abrir `http://localhost:8082/api/puntos` (debe mostrar 8 puntos) o el Swagger de cada servicio.
-5. Pruebas del backend: `mvn test`.
+5. Pruebas del backend: ejecutar `mvn test` dentro de `backend-aprendoia`.
 
 Usuarios de prueba: Administrador (id 1, contraseña `123`), Creador de contenido (id 2, `123`),
 Ana González (id 3, `1234`), Carlos Muñoz (id 4, `1234`).
@@ -196,12 +190,11 @@ Pruebas incluidas: `UsuarioRepositoryTest`, `JuegoRepositoryTest`, `GestionRepos
   (copiado en `apk/app-release.apk`).
 - Verificar la firma: `apksigner verify --print-certs apk/app-release.apk`
 
-![Configuración de firma del APK](docs/capturas/firma-apk.png)
+!(docs/capturas/firma-apk.png)
 
-![APK firmado generado](docs/capturas/apk-generado.png)
+!(docs/capturas/apk-generado.png)
 
-> La llave y sus contraseñas se dejan en el repositorio solo porque la evaluación lo pide.
-> En un proyecto real nunca se suben a un repositorio público.
+
 
 ## 8. Tecnologías
 
