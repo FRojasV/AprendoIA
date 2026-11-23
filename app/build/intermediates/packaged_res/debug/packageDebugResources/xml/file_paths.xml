@@ -1,8 +1,0 @@
-<?xml version="1.0" encoding="utf-8"?>
-<!-- Carpetas que el FileProvider puede compartir con otras apps. -->
-<paths>
-    <!-- Selfies temporales para la app de cámara -->
-    <cache-path name="selfies" path="selfies/" />
-    <!-- Imágenes de códigos QR para compartir -->
-    <cache-path name="qr" path="qr/" />
-</paths>
