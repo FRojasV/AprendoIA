@@ -190,9 +190,9 @@ Pruebas incluidas: `UsuarioRepositoryTest`, `JuegoRepositoryTest`, `GestionRepos
   (copiado en `apk/app-release.apk`).
 - Verificar la firma: `apksigner verify --print-certs apk/app-release.apk`
 
-!(docs/capturas/firma-apk.png)
+![Configuración de firma del APK](docs/capturas/firma-apk.png)
 
-!(docs/capturas/apk-generado.png)
+![APK firmado generado](docs/capturas/apk-generado.png)
 
 
 
