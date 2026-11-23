@@ -6,6 +6,7 @@ import androidx.room.Insert
 import androidx.room.OnConflictStrategy
 import androidx.room.Query
 import androidx.room.Update
+import androidx.room.Upsert
 import com.triskeledu.aprendoia.data.local.entity.PuntoEntity
 import com.triskeledu.aprendoia.data.local.relacion.PuntoConEstado
 import kotlinx.coroutines.flow.Flow
@@ -24,6 +25,22 @@ interface PuntoDao {
 
     @Delete
     suspend fun eliminar(punto: PuntoEntity)
+
+    // ---------- Sincronización con ms-contenidos ----------
+
+    /** Inserta o actualiza SIN borrar la fila (REPLACE borraría en cascada el progreso). */
+    @Upsert
+    suspend fun guardarTodos(puntos: List<PuntoEntity>)
+
+    @Upsert
+    suspend fun guardar(punto: PuntoEntity)
+
+    /** Quita los puntos que ya no existen en el servidor. */
+    @Query("DELETE FROM puntos WHERE id NOT IN (:ids)")
+    suspend fun eliminarExcepto(ids: List<Long>)
+
+    @Query("DELETE FROM puntos WHERE id = :id")
+    suspend fun eliminarPorId(id: Long)
 
     @Query("SELECT COUNT(*) FROM puntos")
     suspend fun contar(): Int

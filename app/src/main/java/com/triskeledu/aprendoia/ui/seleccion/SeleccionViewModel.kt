@@ -35,6 +35,7 @@ class SeleccionViewModel(
     val uiState: StateFlow<SeleccionUiState> = _uiState.asStateFlow()
 
     init {
+        refrescar()
         viewModelScope.launch {
             combine(
                 usuarioRepository.observarJugadores(),
@@ -56,6 +57,15 @@ class SeleccionViewModel(
                         )
                     }
                 }
+        }
+    }
+
+    /** GET /api/usuarios: trae los jugadores registrados en el servidor (por ejemplo, desde otro teléfono). */
+    fun refrescar() {
+        viewModelScope.launch {
+            usuarioRepository.sincronizarUsuarios().onFailure {
+                _uiState.update { it.copy(mensaje = "Sin conexión con el servidor: se muestran los jugadores guardados") }
+            }
         }
     }
 

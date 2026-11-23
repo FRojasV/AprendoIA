@@ -26,6 +26,10 @@ interface DescubrimientoDao {
     @Query("SELECT * FROM descubrimientos WHERE usuarioId = :usuarioId AND contenidoId = :contenidoId LIMIT 1")
     fun observar(usuarioId: Long, contenidoId: Long): Flow<DescubrimientoEntity?>
 
+    /** Sincronización: descubrimientos locales del jugador (para subir los hechos sin conexión). */
+    @Query("SELECT * FROM descubrimientos WHERE usuarioId = :usuarioId")
+    suspend fun obtenerDeUsuario(usuarioId: Long): List<DescubrimientoEntity>
+
     @Query(
         """
         UPDATE descubrimientos SET visto = 1, fechaVisto = :fecha

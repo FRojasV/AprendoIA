@@ -6,6 +6,7 @@ import androidx.room.Insert
 import androidx.room.OnConflictStrategy
 import androidx.room.Query
 import androidx.room.Update
+import androidx.room.Upsert
 import com.triskeledu.aprendoia.data.local.entity.UsuarioEntity
 import com.triskeledu.aprendoia.data.local.relacion.JugadorResumen
 import kotlinx.coroutines.flow.Flow
@@ -25,6 +26,21 @@ interface UsuarioDao {
 
     @Delete
     suspend fun eliminar(usuario: UsuarioEntity)
+
+    // ---------- Sincronización con ms-usuarios ----------
+
+    @Upsert
+    suspend fun guardar(usuario: UsuarioEntity)
+
+    @Upsert
+    suspend fun guardarTodos(usuarios: List<UsuarioEntity>)
+
+    /** Quita los usuarios que fueron eliminados en el servidor. */
+    @Query("DELETE FROM usuarios WHERE id NOT IN (:ids)")
+    suspend fun eliminarExcepto(ids: List<Long>)
+
+    @Query("SELECT * FROM usuarios")
+    suspend fun obtenerTodos(): List<UsuarioEntity>
 
     @Query("SELECT * FROM usuarios WHERE id = :id")
     suspend fun obtenerPorId(id: Long): UsuarioEntity?

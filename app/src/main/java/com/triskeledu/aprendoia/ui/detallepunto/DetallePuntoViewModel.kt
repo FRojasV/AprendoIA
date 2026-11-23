@@ -8,7 +8,9 @@ import androidx.lifecycle.viewModelScope
 import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
 import com.triskeledu.aprendoia.aprendoApp
+import com.triskeledu.aprendoia.data.repository.ClimaRepository
 import com.triskeledu.aprendoia.data.repository.JuegoRepository
+import com.triskeledu.aprendoia.ui.components.EstadoClima
 import com.triskeledu.aprendoia.data.repository.UsuarioRepository
 import com.triskeledu.aprendoia.ui.navigation.Rutas
 import com.triskeledu.aprendoia.util.Coordenada
@@ -30,6 +32,7 @@ import kotlinx.coroutines.launch
 class DetallePuntoViewModel(
     private val usuarioRepository: UsuarioRepository,
     private val juegoRepository: JuegoRepository,
+    private val climaRepository: ClimaRepository,
     savedStateHandle: SavedStateHandle
 ) : ViewModel() {
 
@@ -39,6 +42,7 @@ class DetallePuntoViewModel(
     val uiState: StateFlow<DetallePuntoUiState> = _uiState.asStateFlow()
 
     init {
+        cargarClima()
         viewModelScope.launch {
             usuarioRepository.usuarioActivoId
                 .flatMapLatest { usuarioId ->
@@ -67,6 +71,21 @@ class DetallePuntoViewModel(
 
     fun onUbicacion(coordenada: Coordenada) = _uiState.update { it.copy(ubicacion = coordenada) }
 
+    /** API externa (Open-Meteo): clima actual en las coordenadas del punto. */
+    fun cargarClima() {
+        _uiState.update { it.copy(clima = EstadoClima(cargando = true)) }
+        viewModelScope.launch {
+            val punto = juegoRepository.obtenerPunto(puntoId)
+            if (punto == null) {
+                _uiState.update { it.copy(clima = EstadoClima(error = "Punto no encontrado")) }
+                return@launch
+            }
+            climaRepository.climaActual(punto.latitud, punto.longitud)
+                .onSuccess { clima -> _uiState.update { it.copy(clima = EstadoClima(clima = clima)) } }
+                .onFailure { _uiState.update { it.copy(clima = EstadoClima(error = "No se pudo obtener el clima")) } }
+        }
+    }
+
     companion object {
         val Factory: ViewModelProvider.Factory = viewModelFactory {
             initializer {
@@ -74,6 +93,7 @@ class DetallePuntoViewModel(
                 DetallePuntoViewModel(
                     usuarioRepository = contenedor.usuarioRepository,
                     juegoRepository = contenedor.juegoRepository,
+                    climaRepository = contenedor.climaRepository,
                     savedStateHandle = createSavedStateHandle()
                 )
             }

@@ -1,7 +1,7 @@
 package com.triskeledu.aprendoia.data.repository
 
-import androidx.room.withTransaction
 import com.triskeledu.aprendoia.data.local.AppDatabase
+import com.triskeledu.aprendoia.data.local.Transaccion
 import com.triskeledu.aprendoia.data.local.entity.ContenidoEntity
 import com.triskeledu.aprendoia.data.local.entity.DescubrimientoEntity
 import com.triskeledu.aprendoia.data.local.entity.HistorialEntity
@@ -15,6 +15,11 @@ import com.triskeledu.aprendoia.data.local.relacion.DescubrimientoDetalle
 import com.triskeledu.aprendoia.data.local.relacion.SelfieDetalle
 import com.triskeledu.aprendoia.data.local.relacion.EstadisticasJugador
 import com.triskeledu.aprendoia.data.local.relacion.PuntoConEstado
+import com.triskeledu.aprendoia.data.remote.ErroresRed
+import com.triskeledu.aprendoia.data.remote.api.JuegoApi
+import com.triskeledu.aprendoia.data.remote.dto.EscaneoRequestDto
+import com.triskeledu.aprendoia.data.remote.dto.SelfieRequestDto
+import com.triskeledu.aprendoia.data.remote.dto.VistoRequestDto
 import com.triskeledu.aprendoia.util.Coordenada
 import com.triskeledu.aprendoia.util.Notificador
 import com.triskeledu.aprendoia.util.Ubicacion
@@ -24,9 +29,20 @@ import kotlinx.coroutines.flow.first
 const val RADIO_CERCANIA = 150f
 
 
+/**
+ * Datos y reglas del juego (puntos, escaneos, selfies, historial, notificaciones).
+ *
+ * Modo "offline-first": la interfaz siempre lee de Room, y cada acción del
+ * jugador se envía también al microservicio ms-juego. Si el servidor no
+ * responde, el juego sigue funcionando y SincronizacionRepository sube lo
+ * pendiente cuando vuelve la conexión.
+ */
 class JuegoRepository(
     private val db: AppDatabase,
-    private val notificador: Notificador
+    private val notificador: Notificador,
+    private val api: JuegoApi,
+    private val sincronizacion: SincronizacionRepository,
+    private val transaccion: Transaccion
 ) {
 
     // ---------- Dashboard / Perfil ----------
@@ -77,10 +93,24 @@ class JuegoRepository(
     suspend fun registrarEscaneo(usuarioId: Long?, codigo: String): ResultadoEscaneo {
         if (usuarioId == null) return ResultadoEscaneo.SinSesion
 
-        val contenido = db.contenidoDao().buscarPorCodigoQr(codigo)
+        // 1) POST /api/descubrimientos en ms-juego (valida el código en ms-contenidos).
+        val remoto = runCatching { api.escanear(EscaneoRequestDto(usuarioId, codigo)) }
+        sincronizacion.registrar(remoto)
+        val error = remoto.exceptionOrNull()
+        if (error != null && ErroresRed.codigoHttp(error) == 404) return ResultadoEscaneo.NoEncontrado
+
+        // 2) Si el servidor conoce una cápsula nueva que el teléfono aún no tiene, se descarga.
+        val contenido: ContenidoEntity = db.contenidoDao().buscarPorCodigoQr(codigo)
+            ?: if (remoto.isSuccess) {
+                sincronizacion.sincronizarContenidos()
+                db.contenidoDao().buscarPorCodigoQr(codigo)
+            } else {
+                null
+            }
             ?: return ResultadoEscaneo.NoEncontrado
 
-        val resultado = db.withTransaction<ResultadoEscaneo> {
+        // 3) Se guarda en Room (la interfaz lee de aquí).
+        val resultado = transaccion.ejecutar<ResultadoEscaneo> {
             val idNuevo = db.descubrimientoDao().insertar(
                 DescubrimientoEntity(
                     usuarioId = usuarioId,
@@ -89,7 +119,7 @@ class JuegoRepository(
                 )
             )
             // IGNORE devuelve -1 cuando ya existía (índice único usuario + contenido).
-            if (idNuevo == -1L) return@withTransaction ResultadoEscaneo.Repetido(contenido)
+            if (idNuevo == -1L) return@ejecutar ResultadoEscaneo.Repetido(contenido)
 
             val punto = db.puntoDao().obtenerPorId(contenido.puntoId)
             db.historialDao().insertar(
@@ -159,6 +189,10 @@ class JuegoRepository(
      * (Ver videos no suma puntos: según el caso, los puntos vienen del QR y la selfie.)
      */
     suspend fun marcarVideoVisto(usuarioId: Long, contenido: ContenidoEntity): Boolean {
+        // PUT /api/descubrimientos/visto en ms-juego (si falla, se sincroniza después).
+        runCatching { api.marcarVisto(VistoRequestDto(usuarioId, contenido.id)) }
+            .also { sincronizacion.registrar(it) }
+
         val filas = db.descubrimientoDao().marcarVisto(usuarioId, contenido.id)
         if (filas == 0) return false
         db.historialDao().insertar(
@@ -181,11 +215,11 @@ class JuegoRepository(
      */
     suspend fun registrarSelfie(usuarioId: Long, punto: PuntoEntity, rutaFoto: String): Int? {
         val puntosSelfie = 100
-        val resultado = db.withTransaction<Int?> {
+        val resultado = transaccion.ejecutar<Int?> {
             val id = db.selfieDao().insertar(
                 SelfieEntity(usuarioId = usuarioId, puntoId = punto.id, rutaFoto = rutaFoto, puntos = puntosSelfie)
             )
-            if (id == -1L) return@withTransaction null
+            if (id == -1L) return@ejecutar null
 
             db.historialDao().insertar(
                 HistorialEntity(
@@ -206,6 +240,11 @@ class JuegoRepository(
                 )
             )
             puntosSelfie
+        }
+        if (resultado != null) {
+            // POST /api/selfies en ms-juego (si falla, se sube en la próxima sincronización).
+            runCatching { api.registrarSelfie(SelfieRequestDto(usuarioId, punto.id, rutaFoto)) }
+                .also { sincronizacion.registrar(it) }
         }
         if (resultado != null && notificacionesActivas(usuarioId)) {
             notificador.mostrar("¡+$resultado puntos!", "Tu selfie en ${punto.nombre} quedó guardada en la galería.")

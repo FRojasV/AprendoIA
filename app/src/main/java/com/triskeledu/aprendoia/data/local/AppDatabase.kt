@@ -34,7 +34,8 @@ import com.triskeledu.aprendoia.data.local.entity.UsuarioEntity
         HistorialEntity::class,
         NotificacionEntity::class
     ],
-    version = 1,
+    // v2 (Entrega 4): los ids ahora vienen de los microservicios; se recrea la base local.
+    version = 2,
     exportSchema = false
 )
 abstract class AppDatabase : RoomDatabase() {

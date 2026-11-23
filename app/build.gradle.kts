@@ -2,10 +2,25 @@
 // app/build.gradle.kts  —  módulo de la aplicación "Aprendo IA"
 // Compatible con AGP 9 (Kotlin integrado: no se usa el plugin kotlin-android).
 // =====================================================================
+import java.util.Properties
+
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.compose)
     id("com.google.devtools.ksp")
+}
+
+// ---------------------------------------------------------------------
+// Dirección de los microservicios Spring Boot.
+//  - Emulador de Android Studio: 10.0.2.2 es el "localhost" del PC.
+//  - Teléfono real por Wi-Fi: cambia por la IP del PC (ej. "192.168.1.15").
+// ---------------------------------------------------------------------
+val hostBackend = "10.0.2.2"
+
+// Firma de la APK: lee keystore.properties (en la raíz del proyecto) si existe.
+val propiedadesFirma = Properties().apply {
+    val archivo = rootProject.file("keystore.properties")
+    if (archivo.exists()) archivo.inputStream().use { load(it) }
 }
 
 android {
@@ -20,11 +35,36 @@ android {
         versionCode = 1
         versionName = "1.0"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+
+        // URLs que usa Retrofit (se leen en el código como BuildConfig.URL_...)
+        buildConfigField("String", "URL_MS_USUARIOS", "\"http://$hostBackend:8081/\"")
+        buildConfigField("String", "URL_MS_CONTENIDOS", "\"http://$hostBackend:8082/\"")
+        buildConfigField("String", "URL_MS_JUEGO", "\"http://$hostBackend:8083/\"")
+        // API externa
+        buildConfigField("String", "URL_API_CLIMA", "\"https://api.open-meteo.com/\"")
+    }
+
+    // ---------- Firma de la APK de release con la llave .jks ----------
+    signingConfigs {
+        if (propiedadesFirma.containsKey("storeFile")) {
+            create("release") {
+                storeFile = rootProject.file(propiedadesFirma.getProperty("storeFile"))
+                storePassword = propiedadesFirma.getProperty("storePassword")
+                keyAlias = propiedadesFirma.getProperty("keyAlias")
+                keyPassword = propiedadesFirma.getProperty("keyPassword")
+            }
+        }
     }
 
     buildTypes {
+        debug {
+            // Genera el reporte de cobertura de las pruebas unitarias (JaCoCo):
+            // ./gradlew createDebugUnitTestCoverageReport
+            enableUnitTestCoverage = true
+        }
         release {
             isMinifyEnabled = false
+            signingConfigs.findByName("release")?.let { signingConfig = it }
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
@@ -39,6 +79,14 @@ android {
 
     buildFeatures {
         compose = true
+        buildConfig = true // Para BuildConfig.URL_MS_...
+    }
+
+    testOptions {
+        unitTests {
+            // Los métodos de Android (Log, etc.) devuelven valores por defecto en pruebas JVM.
+            isReturnDefaultValues = true
+        }
     }
 }
 
@@ -83,4 +131,16 @@ dependencies {
 
     // ---------- Mapa OpenStreetMap ----------
     implementation("org.osmdroid:osmdroid-android:6.1.20")
+
+    // ---------- Retrofit: microservicios propios + API externa (Open-Meteo) ----------
+    implementation("com.squareup.retrofit2:retrofit:3.0.0")
+    implementation("com.squareup.retrofit2:converter-gson:3.0.0")
+    implementation("com.squareup.okhttp3:logging-interceptor:4.12.0")
+
+    // ---------- Pruebas unitarias (ViewModel y Repository) ----------
+    testImplementation("junit:junit:4.13.2")
+    testImplementation("io.mockk:mockk:1.14.5")
+    testImplementation("org.jetbrains.kotlinx:kotlinx-coroutines-test:1.10.2")
+    // JSONObject real (el de Android no funciona en pruebas JVM)
+    testImplementation("org.json:json:20240303")
 }

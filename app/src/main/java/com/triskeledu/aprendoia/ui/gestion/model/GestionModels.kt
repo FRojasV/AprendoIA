@@ -61,7 +61,9 @@ data class PuntoFormUiState(
     val esHitoTuristico: Boolean = false,
     val intentoEnviar: Boolean = false,
     val guardando: Boolean = false,
-    val guardado: Boolean = false
+    val guardado: Boolean = false,
+    /** Error devuelto por el microservicio (por ejemplo, sin conexión). */
+    val mensajeError: String? = null
 ) {
     val esEdicion: Boolean get() = idEdicion != null
 
@@ -127,7 +129,9 @@ data class CapsulaFormUiState(
     val intentoEnviar: Boolean = false,
     val guardando: Boolean = false,
     /** Evento: id de la cápsula guardada (para abrir su QR). */
-    val guardadoId: Long? = null
+    val guardadoId: Long? = null,
+    /** Error devuelto por el microservicio (por ejemplo, código QR repetido). */
+    val mensajeError: String? = null
 ) {
     val esEdicion: Boolean get() = idEdicion != null
 

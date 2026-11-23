@@ -10,6 +10,7 @@ import androidx.lifecycle.viewmodel.viewModelFactory
 import com.triskeledu.aprendoia.aprendoApp
 import com.triskeledu.aprendoia.data.local.entity.ContenidoEntity
 import com.triskeledu.aprendoia.data.local.entity.Rol
+import com.triskeledu.aprendoia.data.remote.ErrorServidor
 import com.triskeledu.aprendoia.data.repository.GestionRepository
 import com.triskeledu.aprendoia.data.repository.UsuarioRepository
 import com.triskeledu.aprendoia.ui.gestion.model.CampoFormulario
@@ -149,7 +150,7 @@ class FormularioCapsulaViewModel(
         _uiState.value = validado
         if (!validado.formularioValido) return
 
-        _uiState.update { it.copy(guardando = true) }
+        _uiState.update { it.copy(guardando = true, mensajeError = null) }
         viewModelScope.launch {
             // Validación que necesita la base de datos: el código QR debe ser único.
             val codigo = LectorQr.normalizar(validado.codigoQr.valor)
@@ -172,8 +173,19 @@ class FormularioCapsulaViewModel(
                 // El Creador nunca publica directamente.
                 publicado = validado.esAdmin && validado.publicado
             )
-            val id = gestionRepository.guardarCapsula(capsula, estabaPublicada = validado.estabaPublicado)
-            _uiState.update { it.copy(guardando = false, guardadoId = id) }
+            // Se guarda en ms-contenidos (POST o PUT) y luego en Room.
+            gestionRepository.guardarCapsula(capsula, estabaPublicada = validado.estabaPublicado)
+                .onSuccess { id -> _uiState.update { it.copy(guardando = false, guardadoId = id) } }
+                .onFailure { error ->
+                    _uiState.update {
+                        // 409 = el servidor detectó el código QR repetido: se muestra bajo ese campo.
+                        if ((error as? ErrorServidor)?.codigo == 409) {
+                            it.copy(guardando = false, codigoQr = it.codigoQr.copy(error = error.message))
+                        } else {
+                            it.copy(guardando = false, mensajeError = error.message)
+                        }
+                    }
+                }
         }
     }
 

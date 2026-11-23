@@ -18,6 +18,9 @@ interface SelfieDao {
     @Query("SELECT EXISTS(SELECT 1 FROM selfies WHERE usuarioId = :usuarioId AND puntoId = :puntoId)")
     suspend fun existe(usuarioId: Long, puntoId: Long): Boolean
 
+    @Query("SELECT * FROM selfies WHERE usuarioId = :usuarioId")
+    suspend fun obtenerDeUsuario(usuarioId: Long): List<SelfieEntity>
+
     @Query("SELECT EXISTS(SELECT 1 FROM selfies WHERE usuarioId = :usuarioId AND puntoId = :puntoId)")
     fun observarExiste(usuarioId: Long, puntoId: Long): Flow<Boolean>
 

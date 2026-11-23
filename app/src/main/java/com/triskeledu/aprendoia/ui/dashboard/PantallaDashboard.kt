@@ -70,6 +70,8 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.triskeledu.aprendoia.ui.components.AvatarJugador
+import com.triskeledu.aprendoia.ui.components.AvisoSinConexion
+import com.triskeledu.aprendoia.ui.components.TarjetaClima
 import com.triskeledu.aprendoia.ui.components.TarjetaContador
 import com.triskeledu.aprendoia.ui.theme.AzulClaro
 import com.triskeledu.aprendoia.ui.theme.AzulOscuro
@@ -165,6 +167,18 @@ fun PantallaDashboard(
                     .clickable(onClick = onIrPerfil)
             )
         }
+
+        // ---------- Aviso si los microservicios no responden ----------
+        estado.avisoConexion?.let { mensaje ->
+            AvisoSinConexion(mensaje = mensaje, onReintentar = viewModel::sincronizar)
+        }
+
+        // ---------- API externa: clima en Santiago ----------
+        TarjetaClima(
+            titulo = "Clima ahora en Santiago",
+            estado = estado.clima,
+            onReintentar = viewModel::cargarClima
+        )
 
         // ---------- Puntaje total ----------
         Seccion(visible, indice = 0) {

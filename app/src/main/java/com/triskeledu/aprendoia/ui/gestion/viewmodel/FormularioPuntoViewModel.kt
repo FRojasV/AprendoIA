@@ -107,7 +107,7 @@ class FormularioPuntoViewModel(
         _uiState.value = validado
         if (!validado.formularioValido) return
 
-        _uiState.update { it.copy(guardando = true) }
+        _uiState.update { it.copy(guardando = true, mensajeError = null) }
         val punto = (original ?: PuntoEntity(nombre = "", descripcion = "", latitud = 0.0, longitud = 0.0)).copy(
             nombre = validado.nombre.valor.trim(),
             descripcion = validado.descripcion.valor.trim(),
@@ -117,8 +117,10 @@ class FormularioPuntoViewModel(
             esHitoTuristico = validado.esHitoTuristico
         )
         viewModelScope.launch {
+            // Se guarda en ms-contenidos (POST o PUT) y luego en Room.
             gestionRepository.guardarPunto(punto)
-            _uiState.update { it.copy(guardando = false, guardado = true) }
+                .onSuccess { _uiState.update { it.copy(guardando = false, guardado = true) } }
+                .onFailure { error -> _uiState.update { it.copy(guardando = false, mensajeError = error.message) } }
         }
     }
 

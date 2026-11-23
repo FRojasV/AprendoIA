@@ -33,6 +33,10 @@ class AprendoIAApp : Application() {
 
         scopeApp.launch {
             DatosIniciales.poblar(contenedor.baseDatos)
+            // Con los microservicios encendidos, se descarga la versión más reciente.
+            // Si no responden, la app sigue funcionando con los datos locales.
+            contenedor.usuarioRepository.sincronizarUsuarios()
+            contenedor.sincronizacionRepository.sincronizarContenidos()
         }
     }
 }

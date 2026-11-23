@@ -1,7 +1,5 @@
 package com.triskeledu.aprendoia.util
 
-import android.util.Patterns
-
 /** Errores por campo de los formularios de jugador (null = campo válido). */
 data class ErroresJugador(
     val nombre: String? = null,
@@ -19,6 +17,9 @@ data class ErroresJugador(
  */
 object ValidadorJugador {
 
+    /** Misma expresión del ejemplo de Formularios del curso (funciona también en pruebas JVM). */
+    private val REGEX_CORREO = Regex("^[A-Za-z0-9+_.-]+@[A-Za-z0-9.-]+\\.[A-Za-z]{2,}$")
+
     fun nombre(valor: String): String? = when {
         valor.isBlank() -> "Ingresa tu nombre"
         valor.trim().length < 3 -> "Debe tener al menos 3 caracteres"
@@ -27,7 +28,7 @@ object ValidadorJugador {
 
     fun correo(valor: String): String? = when {
         valor.isBlank() -> "Ingresa tu correo"
-        !Patterns.EMAIL_ADDRESS.matcher(valor.trim()).matches() -> "El correo no es válido"
+        !REGEX_CORREO.matches(valor.trim()) -> "El correo no es válido"
         else -> null
     }
 

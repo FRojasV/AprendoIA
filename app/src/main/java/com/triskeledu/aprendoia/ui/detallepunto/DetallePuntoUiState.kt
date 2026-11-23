@@ -2,6 +2,7 @@ package com.triskeledu.aprendoia.ui.detallepunto
 
 import com.triskeledu.aprendoia.data.local.entity.PuntoEntity
 import com.triskeledu.aprendoia.data.local.relacion.ContenidoConEstado
+import com.triskeledu.aprendoia.ui.components.EstadoClima
 import com.triskeledu.aprendoia.util.Coordenada
 import com.triskeledu.aprendoia.util.Ubicacion
 
@@ -12,7 +13,9 @@ data class DetallePuntoUiState(
     val punto: PuntoEntity? = null,
     val contenidos: List<ContenidoConEstado> = emptyList(),
     val tieneSelfie: Boolean = false,
-    val ubicacion: Coordenada? = null
+    val ubicacion: Coordenada? = null,
+    /** API externa: clima actual en este punto. */
+    val clima: EstadoClima = EstadoClima()
 ) {
     /** El punto se considera completado si el jugador escaneó al menos un QR. */
     val completado: Boolean get() = contenidos.any { it.descubierto }

@@ -32,6 +32,11 @@ class ListaCapsulasViewModel(
     val uiState: StateFlow<ListaCapsulasUiState> = _uiState.asStateFlow()
 
     init {
+        // Al abrir la lista se piden al servidor las cápsulas más recientes.
+        viewModelScope.launch {
+            gestionRepository.refrescar()
+                .onFailure { error -> _uiState.update { it.copy(mensaje = error.message) } }
+        }
         viewModelScope.launch {
             combine(usuarioRepository.usuarioActivo, gestionRepository.observarCapsulas()) { usuario, capsulas ->
                 (usuario?.rol == Rol.ADMIN) to capsulas
@@ -47,7 +52,8 @@ class ListaCapsulasViewModel(
         if (!_uiState.value.esAdmin) return
         viewModelScope.launch {
             gestionRepository.publicar(capsula.contenido)
-            _uiState.update { it.copy(mensaje = "Publicada. Se avisó a los jugadores 🎉") }
+                .onSuccess { _uiState.update { it.copy(mensaje = "Publicada. Se avisó a los jugadores 🎉") } }
+                .onFailure { error -> _uiState.update { it.copy(mensaje = error.message) } }
         }
     }
 
@@ -60,7 +66,8 @@ class ListaCapsulasViewModel(
         _uiState.update { it.copy(capsulaParaEliminar = null) }
         viewModelScope.launch {
             gestionRepository.eliminarCapsula(capsula.contenido)
-            _uiState.update { it.copy(mensaje = "Se eliminó \"${capsula.contenido.titulo}\"") }
+                .onSuccess { _uiState.update { it.copy(mensaje = "Se eliminó \"${capsula.contenido.titulo}\"") } }
+                .onFailure { error -> _uiState.update { it.copy(mensaje = error.message) } }
         }
     }
 

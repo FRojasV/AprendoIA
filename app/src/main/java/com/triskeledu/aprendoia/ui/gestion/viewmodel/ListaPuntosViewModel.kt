@@ -24,6 +24,11 @@ class ListaPuntosViewModel(
     val uiState: StateFlow<ListaPuntosUiState> = _uiState.asStateFlow()
 
     init {
+        // Al abrir la lista se piden al servidor los puntos más recientes.
+        viewModelScope.launch {
+            gestionRepository.refrescar()
+                .onFailure { error -> _uiState.update { it.copy(mensaje = error.message) } }
+        }
         viewModelScope.launch {
             gestionRepository.observarPuntos().collect { puntos ->
                 _uiState.update { it.copy(cargando = false, puntos = puntos) }
@@ -40,7 +45,8 @@ class ListaPuntosViewModel(
         _uiState.update { it.copy(puntoParaEliminar = null) }
         viewModelScope.launch {
             gestionRepository.eliminarPunto(punto)
-            _uiState.update { it.copy(mensaje = "Se eliminó \"${punto.nombre}\"") }
+                .onSuccess { _uiState.update { it.copy(mensaje = "Se eliminó \"${punto.nombre}\"") } }
+                .onFailure { error -> _uiState.update { it.copy(mensaje = error.message) } }
         }
     }
 

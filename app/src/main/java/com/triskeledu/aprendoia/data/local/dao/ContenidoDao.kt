@@ -6,6 +6,7 @@ import androidx.room.Insert
 import androidx.room.OnConflictStrategy
 import androidx.room.Query
 import androidx.room.Update
+import androidx.room.Upsert
 import com.triskeledu.aprendoia.data.local.entity.ContenidoEntity
 import com.triskeledu.aprendoia.data.local.relacion.CapsulaGestion
 import com.triskeledu.aprendoia.data.local.relacion.ContenidoConEstado
@@ -25,6 +26,20 @@ interface ContenidoDao {
 
     @Delete
     suspend fun eliminar(contenido: ContenidoEntity)
+
+    // ---------- Sincronización con ms-contenidos ----------
+
+    @Upsert
+    suspend fun guardarTodos(contenidos: List<ContenidoEntity>)
+
+    @Upsert
+    suspend fun guardar(contenido: ContenidoEntity)
+
+    @Query("DELETE FROM contenidos WHERE id NOT IN (:ids)")
+    suspend fun eliminarExcepto(ids: List<Long>)
+
+    @Query("DELETE FROM contenidos WHERE id = :id")
+    suspend fun eliminarPorId(id: Long)
 
     @Query("SELECT * FROM contenidos ORDER BY titulo COLLATE NOCASE")
     fun observarTodos(): Flow<List<ContenidoEntity>>

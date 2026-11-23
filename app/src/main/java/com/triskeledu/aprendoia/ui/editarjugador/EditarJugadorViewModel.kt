@@ -112,7 +112,11 @@ class EditarJugadorViewModel(
                 .onSuccess { _uiState.update { it.copy(guardando = false, guardado = true) } }
                 .onFailure { error ->
                     _uiState.update {
-                        it.copy(guardando = false, errores = it.errores.copy(correo = error.message))
+                        if (error is IllegalArgumentException) {
+                            it.copy(guardando = false, errores = it.errores.copy(correo = error.message))
+                        } else {
+                            it.copy(guardando = false, mensajeError = error.message)
+                        }
                     }
                 }
         }

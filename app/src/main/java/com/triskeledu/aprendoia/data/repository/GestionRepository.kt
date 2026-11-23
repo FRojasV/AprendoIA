@@ -7,18 +7,27 @@ import com.triskeledu.aprendoia.data.local.entity.PuntoEntity
 import com.triskeledu.aprendoia.data.local.entity.TipoNotificacion
 import com.triskeledu.aprendoia.data.local.relacion.CapsulaGestion
 import com.triskeledu.aprendoia.data.local.relacion.ResumenGestion
+import com.triskeledu.aprendoia.data.remote.ErrorServidor
+import com.triskeledu.aprendoia.data.remote.ErroresRed
+import com.triskeledu.aprendoia.data.remote.aEntidad
+import com.triskeledu.aprendoia.data.remote.aRequest
+import com.triskeledu.aprendoia.data.remote.api.ContenidosApi
 import com.triskeledu.aprendoia.util.Notificador
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.combine
 
 /**
- * Operaciones del Administrador y del Creador de Contenido:
- * mantener puntos georreferenciados, cápsulas de IA y su publicación.
- * (Reemplaza al backend mientras no exista.)
+ * Operaciones del Administrador y del Creador de Contenido (CRUD de puntos y cápsulas).
+ *
+ * Cada operación va PRIMERO al microservicio ms-contenidos y, si responde bien,
+ * se guarda en Room. Así todos los teléfonos ven los mismos datos y la
+ * interfaz (que observa Room) se actualiza sola.
  */
 class GestionRepository(
     private val db: AppDatabase,
-    private val notificador: Notificador
+    private val notificador: Notificador,
+    private val api: ContenidosApi,
+    private val sincronizacion: SincronizacionRepository
 ) {
 
     fun observarResumen(): Flow<ResumenGestion> = combine(
@@ -28,22 +37,28 @@ class GestionRepository(
         db.usuarioDao().observarCantidadClientes()
     ) { puntos, capsulas, pendientes, jugadores -> ResumenGestion(puntos, capsulas, pendientes, jugadores) }
 
+    /** Trae del servidor la última versión de puntos y cápsulas. */
+    suspend fun refrescar(): Result<Unit> = sincronizacion.sincronizarContenidos()
+
     // ---------- Puntos ----------
 
     fun observarPuntos(): Flow<List<PuntoEntity>> = db.puntoDao().observarTodos()
 
     suspend fun obtenerPunto(id: Long): PuntoEntity? = db.puntoDao().obtenerPorId(id)
 
-    /** Inserta si es nuevo (id = 0) o actualiza si ya existe. Devuelve el id. */
-    suspend fun guardarPunto(punto: PuntoEntity): Long =
-        if (punto.id == 0L) db.puntoDao().insertar(punto)
-        else {
-            db.puntoDao().actualizar(punto)
-            punto.id
-        }
+    /** Crea (id = 0) o actualiza el punto en ms-contenidos y luego en Room. Devuelve el id. */
+    suspend fun guardarPunto(punto: PuntoEntity): Result<Long> = remoto {
+        val dto = if (punto.id == 0L) api.crearPunto(punto.aRequest())
+        else api.actualizarPunto(punto.id, punto.aRequest())
+        db.puntoDao().guardar(dto.aEntidad())
+        dto.id
+    }
 
-    /** Al borrar un punto, SQLite borra en cascada sus cápsulas, descubrimientos y selfies. */
-    suspend fun eliminarPunto(punto: PuntoEntity) = db.puntoDao().eliminar(punto)
+    /** Al borrar un punto, el servidor y SQLite borran en cascada sus cápsulas. */
+    suspend fun eliminarPunto(punto: PuntoEntity): Result<Unit> = remoto {
+        api.eliminarPunto(punto.id)
+        db.puntoDao().eliminarPorId(punto.id)
+    }
 
     // ---------- Cápsulas ----------
 
@@ -51,32 +66,36 @@ class GestionRepository(
 
     suspend fun obtenerCapsula(id: Long): ContenidoEntity? = db.contenidoDao().obtenerPorId(id)
 
-    /** true si ningún OTRO contenido usa ese código QR. */
+    /** true si ningún OTRO contenido usa ese código QR (el servidor también lo valida). */
     suspend fun codigoDisponible(codigo: String, excluirId: Long): Boolean =
         db.contenidoDao().contarPorCodigoQr(codigo, excluirId) == 0
 
     /**
-     * Guarda la cápsula. Si queda publicada y antes no lo estaba,
-     * se avisa a todos los jugadores.
+     * Guarda la cápsula en ms-contenidos y en Room. Si queda publicada y antes
+     * no lo estaba, se avisa a todos los jugadores.
      */
-    suspend fun guardarCapsula(capsula: ContenidoEntity, estabaPublicada: Boolean): Long {
-        val id = if (capsula.id == 0L) db.contenidoDao().insertar(capsula)
-        else {
-            db.contenidoDao().actualizar(capsula)
-            capsula.id
-        }
-        if (capsula.publicado && !estabaPublicada) avisarNuevaCapsula(capsula)
-        return id
+    suspend fun guardarCapsula(capsula: ContenidoEntity, estabaPublicada: Boolean): Result<Long> = remoto {
+        val dto = if (capsula.id == 0L) api.crearCapsula(capsula.aRequest())
+        else api.actualizarCapsula(capsula.id, capsula.aRequest())
+        val guardada = dto.aEntidad()
+        db.contenidoDao().guardar(guardada)
+        if (guardada.publicado && !estabaPublicada) avisarNuevaCapsula(guardada)
+        dto.id
     }
 
     /** Solo el Administrador: deja visible para los jugadores una cápsula pendiente. */
-    suspend fun publicar(capsula: ContenidoEntity) {
-        if (capsula.publicado) return
-        db.contenidoDao().actualizar(capsula.copy(publicado = true))
-        avisarNuevaCapsula(capsula)
+    suspend fun publicar(capsula: ContenidoEntity): Result<Unit> = remoto {
+        if (!capsula.publicado) {
+            val dto = api.publicarCapsula(capsula.id)
+            db.contenidoDao().guardar(dto.aEntidad())
+            avisarNuevaCapsula(capsula)
+        }
     }
 
-    suspend fun eliminarCapsula(capsula: ContenidoEntity) = db.contenidoDao().eliminar(capsula)
+    suspend fun eliminarCapsula(capsula: ContenidoEntity): Result<Unit> = remoto {
+        api.eliminarCapsula(capsula.id)
+        db.contenidoDao().eliminarPorId(capsula.id)
+    }
 
     /** Notificación "Nuevo video" en la bandeja de cada jugador + aviso en el teléfono. */
     private suspend fun avisarNuevaCapsula(capsula: ContenidoEntity) {
@@ -95,5 +114,18 @@ class GestionRepository(
             db.notificacionDao().insertarVarias(avisos)
             notificador.mostrar("🎬 Nueva cápsula de IA", "\"${capsula.titulo}\" ya está disponible en $lugar.")
         }
+    }
+
+    /**
+     * Ejecuta una llamada al servidor y convierte cualquier error en un
+     * mensaje claro para el usuario ("Ese código QR ya está en uso", "Sin conexión...").
+     */
+    private suspend fun <T> remoto(bloque: suspend () -> T): Result<T> {
+        val resultado = runCatching { bloque() }
+        sincronizacion.registrar(resultado)
+        return resultado.fold(
+            onSuccess = { Result.success(it) },
+            onFailure = { Result.failure(ErrorServidor(ErroresRed.mensaje(it), ErroresRed.codigoHttp(it))) }
+        )
     }
 }

@@ -59,6 +59,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.triskeledu.aprendoia.data.local.entity.PuntoEntity
 import com.triskeledu.aprendoia.data.local.relacion.ContenidoConEstado
+import com.triskeledu.aprendoia.ui.components.TarjetaClima
 import com.triskeledu.aprendoia.ui.mapa.Etiqueta
 import com.triskeledu.aprendoia.ui.mapa.EtiquetaEstado
 import com.triskeledu.aprendoia.ui.theme.AzulClaro
@@ -179,6 +180,13 @@ fun PantallaDetallePunto(
                 }
 
                 Text(punto.descripcion, style = MaterialTheme.typography.bodyLarge)
+
+                // ---------- API externa: clima en este punto ----------
+                TarjetaClima(
+                    titulo = "Clima ahora en ${punto.nombre}",
+                    estado = estado.clima,
+                    onReintentar = viewModel::cargarClima
+                )
 
                 // ---------- Información turística ----------
                 if (punto.infoTuristica.isNotBlank()) {

@@ -159,6 +159,9 @@ fun PantallaFormularioCapsula(
                 }
             }
 
+            // Error del microservicio (sin conexión, dato repetido, etc.)
+            estado.mensajeError?.let { Text(it, color = MaterialTheme.colorScheme.error) }
+
             if (estado.intentoEnviar && !estado.formularioValido) {
                 Text("Revisa los campos marcados en rojo.", color = MaterialTheme.colorScheme.error)
             }

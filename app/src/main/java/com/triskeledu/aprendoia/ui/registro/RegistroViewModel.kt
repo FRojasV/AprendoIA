@@ -95,7 +95,8 @@ class RegistroViewModel(
                         // Error de negocio (correo repetido): se muestra bajo el campo.
                         it.copy(guardando = false, errores = it.errores.copy(correo = error.message))
                     } else {
-                        it.copy(guardando = false, mensajeError = "No fue posible crear el jugador")
+                        // Sin conexión u otro error del microservicio ms-usuarios.
+                        it.copy(guardando = false, mensajeError = error.message ?: "No fue posible crear el jugador")
                     }
                 }
             }
